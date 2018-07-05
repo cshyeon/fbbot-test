@@ -5,8 +5,7 @@ var router = express.Router();
 PAGE_ACCESS_TOKEN = process.argv[2];
 
 // Adds support for GET requests to our webhook
-router.get('/', (req, res) => {
-    
+router.get('/', (req, res) => {    
     // Your verify token. Should be a random string.
     let VERIFY_TOKEN = "ttt"
       
@@ -34,6 +33,7 @@ router.get('/', (req, res) => {
 
 // Creates the endpoint for our webhook 
 router.post('/', (req, res) => {  
+  // console.log('router post was called');
     let body = req.body;    
   
     // Checks this is an event from a page subscription
@@ -45,10 +45,10 @@ router.post('/', (req, res) => {
   
         // Gets the message. entry.messaging is an array, but 
         // will only ever contain one message, so we get index 0
-        let webhook_event = entry.messaging[0];
-        // console.log(webhook_event);
-        if(webhook_event.message && webhook_event.message.text) {
-          sendTextMessage(webhook_event.sender.id, webhook_event.message.text);
+        let webhook_event = entry.messaging[0];        
+        if(webhook_event.message) {
+          let echoMsg = generateEchoMessage(webhook_event.message);
+          sendPublicMessage(webhook_event.sender.id, echoMsg);
         }
       });
   
@@ -61,22 +61,43 @@ router.post('/', (req, res) => {
   
   });
 
-  function sendTextMessage(recipientId, message) {
-    //console.log('send msg' ,recipientId, message , PAGE_ACCESS_TOKEN);
-    request({
-        url: 'https://graph.facebook.com/v2.6/me/messages',
-        qs: { access_token: PAGE_ACCESS_TOKEN },
-        method: 'POST',
-        json: {
-            messaging_type: "RESPONSE",
-            recipient: { id: recipientId },
-            message: { text: message }
-        }
-    }, function(error, response, body) {
-        if (error) {
-            console.log('sendTextMessage() err: ' + response.error);
-        }
-    });
+function sendPublicMessage(recipientId, message) {
+  // console.log('send msg' ,recipientId, message.attachments.payload , PAGE_ACCESS_TOKEN);
+  request({
+    url: 'https://graph.facebook.com/v2.6/me/messages',
+    qs: { access_token: PAGE_ACCESS_TOKEN },
+    method: 'POST',
+    json: {
+        messaging_type: "RESPONSE",
+        recipient: { id: recipientId },
+        message: message
+    }
+}, function(error, response, body) {
+    // 'body' is response of facebook
+    // console.log(body);
+    if (error) {
+        console.log('sendPublicMessage() err: ' + response.error);
+    }
+});
+}
+
+function generateEchoMessage(originMsg) { 
+  // console.log(originMsg);
+
+  var echoMsg = Object.assign({}, originMsg);
+  delete echoMsg.mid;
+  delete echoMsg.seq;
+  if(echoMsg.attachments) {    
+    echoMsg.attachment = echoMsg.attachments[0];
+    if(echoMsg.attachment.payload) {
+      delete echoMsg.attachment.payload.sticker_id;
+    }
+    delete echoMsg.sticker_id;
+    delete echoMsg.attachments;
+  }   
+  
+  // console.log(echoMsg);
+  return echoMsg;
 }
 
 module.exports = router;
