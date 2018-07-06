@@ -35,7 +35,7 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {  
   // console.log('router post was called');
     let body = req.body;    
-  
+
     // Checks this is an event from a page subscription
     if (body.object === 'page') {
   
@@ -44,16 +44,36 @@ router.post('/', (req, res) => {
         // console.log(entry);  
         // Gets the message. entry.messaging is an array, but 
         // will only ever contain one message, so we get index 0
+        // console.log(entry.messaging[0]);
         let webhook_event = entry.messaging[0];     
-        // console.log(webhook_event);
+        console.log(webhook_event);
 
         //#handle webhook events ============================================
-        if(webhook_event.message) { // message hook
-          let echoMsg = createEchoMessage(webhook_event.message);
-          sendMessage(webhook_event.sender.id, echoMsg);
+        let sendMsg;
+
+        if(webhook_event.message) {    // message hook
+          if(getRandomInt(0, 1) === 0) {  // 확률적으로 echo msg 전송
+            sendMsg = createEchoMessage(webhook_event.message);
+          } else {
+            sendMsg = createButtonMessage({text:'tttt', buttons: [{
+                "type":"web_url",
+                "url":"https://www.messenger.com",
+                "title":"Visit Messenger"
+              }]
+            });
+          }
         } else if ( webhook_event.postback ){ // postback hook
-          console.log(webhook_event.postback);
+          if (webhook_event.postback.payload) {
+            let payload = webhook_event.postback.payload;
+            if ( payload === "GET_STARTED_PAYLOAD") {
+              sendMsg = createTextMessage({text: '안녕하세요 에코봇 입니다. 당신을 가끔 따라 할게요'});
+            }
+              
+          }
         }
+
+        
+        sendMessage(webhook_event.sender.id, sendMsg);
         //==================================================================
       });
   
@@ -78,8 +98,7 @@ function sendMessage(recipientId, message) {
         message: message
     }
 }, function(error, response, body) {
-    // 'body' is response of facebook
-    // console.log(body);
+    // 'body' is response of facebook    
     if (error) {
         console.log('sendPublicMessage() err: ' + response.error);
     }
@@ -106,21 +125,25 @@ function createEchoMessage(originMsg) {
   return echoMsg;
 }
 
-function createButton(params) {
-  return { "attachment":{
-    "type":"template",
-    "payload":{
-      "template_type":"button",
-      "text":"What do you want to do next?",
-      "buttons":[
-        {
-          "type":"web_url",
-          "url":"https://www.messenger.com",
-          "title":"Visit Messenger"
-        }
-      ]
-    }
-  }  };
+function createButtonMessage (params) {
+  return { 
+    "attachment":{
+      "type":"template",
+      "payload":{
+        "template_type":"button",
+        "text":params.text,
+        "buttons":params.buttons
+      }
+    }  
+  };
+}
+
+function createTextMessage (params) {
+  return {text: params.text};
+}
+
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 module.exports = router;
