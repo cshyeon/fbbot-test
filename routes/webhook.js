@@ -41,15 +41,20 @@ router.post('/', (req, res) => {
   
       // Iterates over each entry - there may be multiple if batched
       body.entry.forEach(function(entry) {
-        // console.log(entry);
-  
+        // console.log(entry);  
         // Gets the message. entry.messaging is an array, but 
         // will only ever contain one message, so we get index 0
-        let webhook_event = entry.messaging[0];        
-        if(webhook_event.message) {
-          let echoMsg = generateEchoMessage(webhook_event.message);
-          sendPublicMessage(webhook_event.sender.id, echoMsg);
+        let webhook_event = entry.messaging[0];     
+        // console.log(webhook_event);
+
+        //#handle webhook events ============================================
+        if(webhook_event.message) { // message hook
+          let echoMsg = createEchoMessage(webhook_event.message);
+          sendMessage(webhook_event.sender.id, echoMsg);
+        } else if ( webhook_event.postback ){ // postback hook
+          console.log(webhook_event.postback);
         }
+        //==================================================================
       });
   
       // Returns a '200 OK' response to all requests
@@ -61,7 +66,7 @@ router.post('/', (req, res) => {
   
   });
 
-function sendPublicMessage(recipientId, message) {
+function sendMessage(recipientId, message) {
   // console.log('send msg' ,recipientId, message.attachments.payload , PAGE_ACCESS_TOKEN);
   request({
     url: 'https://graph.facebook.com/v2.6/me/messages',
@@ -81,12 +86,13 @@ function sendPublicMessage(recipientId, message) {
 });
 }
 
-function generateEchoMessage(originMsg) { 
+function createEchoMessage(originMsg) { 
   // console.log(originMsg);
 
-  var echoMsg = Object.assign({}, originMsg);
+  let echoMsg = Object.assign({}, originMsg);
   delete echoMsg.mid;
   delete echoMsg.seq;
+
   if(echoMsg.attachments) {    
     echoMsg.attachment = echoMsg.attachments[0];
     if(echoMsg.attachment.payload) {
@@ -98,6 +104,23 @@ function generateEchoMessage(originMsg) {
   
   // console.log(echoMsg);
   return echoMsg;
+}
+
+function createButton(params) {
+  return { "attachment":{
+    "type":"template",
+    "payload":{
+      "template_type":"button",
+      "text":"What do you want to do next?",
+      "buttons":[
+        {
+          "type":"web_url",
+          "url":"https://www.messenger.com",
+          "title":"Visit Messenger"
+        }
+      ]
+    }
+  }  };
 }
 
 module.exports = router;
